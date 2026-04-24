@@ -204,6 +204,17 @@ export default function Dashboard({ selectedListId, onSelectList, onNavigate }: 
       </section>
 
       <section className="mt-4 codex-panel overflow-hidden rounded-[14px]">
+        <button onClick={() => onNavigate({ type: 'study', mode: 'flashcard', listId: primaryList.id })} className="codex-action-row">
+          <span className="codex-action-icon">
+            <BookOpen size={16} />
+          </span>
+          <span className="min-w-0 flex-1">
+            <span className="block text-sm font-semibold text-claude-text">Kartlar</span>
+            <span className="mt-0.5 block text-xs text-claude-muted">Liste kartlarını SRS ile çalış</span>
+          </span>
+          <ArrowRight size={16} className="text-claude-muted" />
+        </button>
+        <div className="codex-divider" />
         <button onClick={() => onNavigate({ type: 'study', mode: 'quiz', listId: primaryList.id })} className="codex-action-row">
           <span className="codex-action-icon">
             <ArrowRight size={16} />
