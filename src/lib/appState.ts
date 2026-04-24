@@ -4,6 +4,7 @@ import {
   LIST_B2_VOCAB,
   LIST_C1_VOCAB,
   LIST_COLLOCATIONS,
+  LIST_COMMON_VERBS,
   LIST_IDIOMS,
   LIST_MY_NEW_WORDS,
   LIST_PHRASAL_VERBS,
@@ -14,6 +15,7 @@ const DEFAULT_DIRECTION: AppState['studyDirection'] = 'EN_TO_TR';
 const DEFAULT_AI_MODEL: NonNullable<AppState['aiModel']> = 'gemini-3.1-flash-image-preview';
 
 const ALL_DEFAULT_LISTS: VocabList[] = [
+  LIST_COMMON_VERBS,
   LIST_B2_VOCAB,
   LIST_C1_VOCAB,
   LIST_PHRASAL_VERBS,

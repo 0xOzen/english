@@ -1,4 +1,5 @@
 import { Flashcard, VocabList, WordType } from './types';
+import { createCommonVerbCards } from './commonVerbs';
 
 type SeedCard = {
   term: string;
@@ -1436,6 +1437,13 @@ export const LIST_B2_VOCAB: VocabList = {
   title: 'B2 Core Vocabulary',
   isDefault: true,
   words: mapCards('b2_vocab', [...b2Vocabulary, ...additionalB2Vocabulary]),
+};
+
+export const LIST_COMMON_VERBS: VocabList = {
+  id: 'common-english-verbs',
+  title: 'Common English Verbs',
+  isDefault: true,
+  words: createCommonVerbCards(),
 };
 
 export const LIST_C1_VOCAB: VocabList = {
