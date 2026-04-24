@@ -11,6 +11,37 @@ export type WordType =
 
 export type StudyDirection = 'EN_TO_TR' | 'TR_TO_EN';
 
+export type CardKind =
+  | 'meaning'
+  | 'production'
+  | 'collocation'
+  | 'register'
+  | 'sentenceTransformation'
+  | 'speakingFunction'
+  | 'errorCorrection'
+  | 'pronunciation';
+
+export type SrsRating = 'again' | 'hard' | 'good' | 'easy';
+
+export type SrsState = 'new' | 'learning' | 'review';
+
+export type SrsSchedule = {
+  dueDate: string;
+  interval: number;
+  ease: number;
+  difficulty: number;
+  lastReviewed?: string;
+  retrievability: number;
+  reps: number;
+  lapses: number;
+  state: SrsState;
+};
+
+export type UsageResource = {
+  label: string;
+  url: string;
+};
+
 export type Flashcard = {
   id: string;
   term: string;
@@ -24,6 +55,16 @@ export type Flashcard = {
   note?: string;
 
   wordType?: WordType;
+  cardKind?: CardKind;
+  prompt?: string;
+  answer?: string;
+  distractors?: string[];
+  register?: 'informal' | 'neutral' | 'formal';
+  sourceTags?: string[];
+  usageLinks?: UsageResource[];
+  pronunciationVariant?: 'us' | 'uk';
+  userPronunciationUrl?: string;
+  srs?: SrsSchedule;
   
   // Legacy German noun fields. Kept so old backups can still be imported safely.
   article?: string;
@@ -77,9 +118,16 @@ export type WordStats = {
   incorrect: number;
 };
 
+export type SrsSettings = {
+  targetRetention: number;
+  newCardsPerDay: number;
+  reviewCardsPerDay: number;
+};
+
 export type AppState = {
   lists: VocabList[];
   stats: Record<string, WordStats>;
+  srsSettings?: SrsSettings;
   studyDirection?: StudyDirection;
   aiModel?: 'gemini-3.1-flash-image-preview' | 'gemini-2.5-flash-image' | 'gemini-3-pro-image-preview';
   browserApiKey?: string;

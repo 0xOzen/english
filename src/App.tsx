@@ -1,12 +1,15 @@
 import { useEffect, useState } from 'react';
 import {
   BookOpen,
+  Brain,
   ChevronDown,
   Download,
+  FileText,
   Pencil,
   Flame,
   LayoutDashboard,
   LibraryBig,
+  Mic,
   Moon,
   PanelLeft,
   Plus,
@@ -23,6 +26,9 @@ import QuizMode from './screens/QuizMode';
 import WriteMode from './screens/WriteMode';
 import MatchMode from './screens/MatchMode';
 import GrammarHub from './screens/GrammarHub';
+import TodayReview from './screens/TodayReview';
+import SpeakingLab from './screens/SpeakingLab';
+import ContextImport from './screens/ContextImport';
 import InstallBanner from './components/InstallBanner';
 import SettingsModal from './components/SettingsModal';
 import { useTheme } from './theme';
@@ -32,6 +38,9 @@ import { GrammarLevel, GrammarSection, GrammarTopic } from './types';
 export type Screen =
   | { type: 'dashboard' }
   | { type: 'grammar' }
+  | { type: 'review' }
+  | { type: 'speaking' }
+  | { type: 'import' }
   | { type: 'edit_list'; listId: string }
   | { type: 'study'; mode: 'flashcard' | 'quiz' | 'write' | 'match'; listId: string };
 
@@ -72,6 +81,7 @@ export default function App() {
     setAiModel,
     showInstallHint,
     getDifficultWordsList,
+    getSrsSummary,
   } = useApp();
   const [currentScreen, setCurrentScreen] = useState<Screen>({ type: 'dashboard' });
   const [selectedListId, setSelectedListId] = useState('');
@@ -87,8 +97,9 @@ export default function App() {
   const navigate = (screen: Screen) => {
     setCurrentScreen(screen);
   };
-  const isStudyScreen = currentScreen.type === 'study';
+  const isStudyScreen = currentScreen.type === 'study' || currentScreen.type === 'review';
   const difficultList = getDifficultWordsList();
+  const srsSummary = getSrsSummary();
   const grammarTopicOptions = getGrammarTopicOptions(grammarSectionFilter, grammarLevelFilter, grammarQuery);
 
   const selectList = (listId: string) => {
@@ -242,6 +253,33 @@ export default function App() {
               >
                 <LibraryBig className="nav-icon" />
                 <span>Grammar Lab</span>
+              </button>
+              <button
+                onClick={() => navigate({ type: 'review' })}
+                className={isActive(currentScreen.type === 'review')}
+                aria-current={currentScreen.type === 'review' ? 'page' : undefined}
+              >
+                <div className="flex flex-1 items-center gap-3">
+                  <Brain className="nav-icon" />
+                  <span>Today's Review</span>
+                </div>
+                <span className="badge bg-claude-accentSoft text-claude-accent">{srsSummary.dueTotal}</span>
+              </button>
+              <button
+                onClick={() => navigate({ type: 'speaking' })}
+                className={isActive(currentScreen.type === 'speaking')}
+                aria-current={currentScreen.type === 'speaking' ? 'page' : undefined}
+              >
+                <Mic className="nav-icon" />
+                <span>Speaking Lab</span>
+              </button>
+              <button
+                onClick={() => navigate({ type: 'import' })}
+                className={isActive(currentScreen.type === 'import')}
+                aria-current={currentScreen.type === 'import' ? 'page' : undefined}
+              >
+                <FileText className="nav-icon" />
+                <span>Context Import</span>
               </button>
               {difficultList && difficultList.words.length > 0 ? (
                 <button
@@ -441,6 +479,9 @@ export default function App() {
               selectedTopicId={selectedGrammarTopicId}
             />
           )}
+          {currentScreen.type === 'review' && <TodayReview onNavigate={navigate} />}
+          {currentScreen.type === 'speaking' && <SpeakingLab onNavigate={navigate} />}
+          {currentScreen.type === 'import' && <ContextImport onNavigate={navigate} />}
           {currentScreen.type === 'edit_list' && <ListEditor listId={currentScreen.listId} onNavigate={navigate} />}
           {currentScreen.type === 'study' && currentScreen.mode === 'flashcard' && (
             <FlashcardMode listId={currentScreen.listId} onNavigate={navigate} />

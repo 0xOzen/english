@@ -1,4 +1,5 @@
 import { AppState, Flashcard, VocabList, WordStats } from '../types';
+import { DEFAULT_SRS_SETTINGS, getInitialSrsSchedule } from './srs';
 import {
   LIST_B2_VOCAB,
   LIST_C1_VOCAB,
@@ -34,6 +35,7 @@ export function createDefaultAppState(): AppState {
   return {
     lists: createDefaultLists(),
     stats: {},
+    srsSettings: DEFAULT_SRS_SETTINGS,
     studyDirection: DEFAULT_DIRECTION,
     aiModel: DEFAULT_AI_MODEL,
     browserApiKey: '',
@@ -43,6 +45,9 @@ export function createDefaultAppState(): AppState {
 
 function migrateWord(rawWord: unknown): Flashcard {
   const word = (rawWord ?? {}) as Record<string, unknown>;
+  const rawSrs = typeof word.srs === 'object' && word.srs !== null ? (word.srs as Record<string, unknown>) : null;
+  const rawUsageLinks = Array.isArray(word.usageLinks) ? word.usageLinks : [];
+  const rawSourceTags = Array.isArray(word.sourceTags) ? word.sourceTags : [];
 
   return {
     ...word,
@@ -55,6 +60,39 @@ function migrateWord(rawWord: unknown): Flashcard {
     exampleTranslation: String(word.exampleTranslation || word.exampleTurkish || ''),
     note: typeof word.note === 'string' ? word.note : undefined,
     wordType: typeof word.wordType === 'string' ? (word.wordType as Flashcard['wordType']) : undefined,
+    cardKind: typeof word.cardKind === 'string' ? (word.cardKind as Flashcard['cardKind']) : undefined,
+    prompt: typeof word.prompt === 'string' ? word.prompt : undefined,
+    answer: typeof word.answer === 'string' ? word.answer : undefined,
+    distractors: Array.isArray(word.distractors) ? word.distractors.map(String) : undefined,
+    register:
+      word.register === 'informal' || word.register === 'neutral' || word.register === 'formal'
+        ? word.register
+        : undefined,
+    sourceTags: rawSourceTags.map(String),
+    usageLinks: rawUsageLinks
+      .map((link) => {
+        const item = (link ?? {}) as Record<string, unknown>;
+        return typeof item.label === 'string' && typeof item.url === 'string'
+          ? { label: item.label, url: item.url }
+          : null;
+      })
+      .filter((link): link is NonNullable<Flashcard['usageLinks']>[number] => link !== null),
+    pronunciationVariant: word.pronunciationVariant === 'uk' ? 'uk' : word.pronunciationVariant === 'us' ? 'us' : undefined,
+    userPronunciationUrl: typeof word.userPronunciationUrl === 'string' ? word.userPronunciationUrl : undefined,
+    srs: rawSrs
+      ? {
+          ...getInitialSrsSchedule(),
+          dueDate: typeof rawSrs.dueDate === 'string' ? rawSrs.dueDate : new Date().toISOString(),
+          interval: Number(rawSrs.interval ?? 0),
+          ease: Number(rawSrs.ease ?? 2.5),
+          difficulty: Number(rawSrs.difficulty ?? 0.3),
+          lastReviewed: typeof rawSrs.lastReviewed === 'string' ? rawSrs.lastReviewed : undefined,
+          retrievability: Number(rawSrs.retrievability ?? 1),
+          reps: Number(rawSrs.reps ?? 0),
+          lapses: Number(rawSrs.lapses ?? 0),
+          state: rawSrs.state === 'learning' || rawSrs.state === 'review' ? rawSrs.state : 'new',
+        }
+      : undefined,
     article: typeof word.article === 'string' ? word.article : undefined,
     plural: typeof word.plural === 'string' ? word.plural : undefined,
     level: typeof word.level === 'string' ? word.level : undefined,
@@ -158,10 +196,19 @@ export function migrateAppState(rawState: unknown): AppState {
     parsed.aiModel === 'gemini-3-pro-image-preview'
       ? parsed.aiModel
       : base.aiModel;
+  const rawSrsSettings =
+    typeof parsed.srsSettings === 'object' && parsed.srsSettings !== null
+      ? (parsed.srsSettings as Record<string, unknown>)
+      : {};
 
   return {
     lists: migratedLists,
     stats: migrateStats(parsed.stats),
+    srsSettings: {
+      targetRetention: Number(rawSrsSettings.targetRetention ?? base.srsSettings?.targetRetention ?? DEFAULT_SRS_SETTINGS.targetRetention),
+      newCardsPerDay: Number(rawSrsSettings.newCardsPerDay ?? base.srsSettings?.newCardsPerDay ?? DEFAULT_SRS_SETTINGS.newCardsPerDay),
+      reviewCardsPerDay: Number(rawSrsSettings.reviewCardsPerDay ?? base.srsSettings?.reviewCardsPerDay ?? DEFAULT_SRS_SETTINGS.reviewCardsPerDay),
+    },
     studyDirection,
     aiModel,
     browserApiKey: typeof parsed.browserApiKey === 'string' ? parsed.browserApiKey : base.browserApiKey,

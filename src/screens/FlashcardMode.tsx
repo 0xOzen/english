@@ -1,21 +1,44 @@
 import { useMemo, useState } from 'react';
 import { AnimatePresence, motion } from 'motion/react';
-import { Check, Shuffle, Undo2, X } from 'lucide-react';
+import { CheckCircle2, Shuffle, Undo2, Zap } from 'lucide-react';
 import { useApp } from '../AppContext';
 import { Screen } from '../App';
 import Flashcard from '../Flashcard';
 import StudyModeShell from '../components/StudyModeShell';
 import StudyCompletionCard from '../components/StudyCompletionCard';
+import { SrsRating } from '../types';
+
+const ratingConfig: Record<SrsRating, { label: string; hint: string; className: string }> = {
+  again: {
+    label: 'Again',
+    hint: 'Tekrar yakına al',
+    className: 'hover:border-claude-danger/50 hover:text-claude-danger',
+  },
+  hard: {
+    label: 'Hard',
+    hint: 'Zor, ama çıktı',
+    className: 'hover:border-claude-warning/50 hover:text-claude-warning',
+  },
+  good: {
+    label: 'Good',
+    hint: 'Beklenen tekrar',
+    className: 'hover:border-claude-success/50 hover:text-claude-success',
+  },
+  easy: {
+    label: 'Easy',
+    hint: 'Aralığı aç',
+    className: 'hover:border-claude-accent/50 hover:text-claude-accent',
+  },
+};
 
 export default function FlashcardMode({ listId, onNavigate }: { listId: string; onNavigate: (screen: Screen) => void }) {
-  const { lists, recordSuccess, recordFailure, studyDirection, toggleStudyDirection, getDifficultWordsList } = useApp();
+  const { lists, rateCard, studyDirection, toggleStudyDirection, getDifficultWordsList } = useApp();
   const list = listId === 'difficult-words' ? getDifficultWordsList() : lists.find((item) => item.id === listId);
   const initialWords = list?.words || [];
 
   const [deck, setDeck] = useState(initialWords);
   const [currentIndex, setCurrentIndex] = useState(0);
-  const [knownCount, setKnownCount] = useState(0);
-  const [unknownCount, setUnknownCount] = useState(0);
+  const [ratings, setRatings] = useState<Record<SrsRating, number>>({ again: 0, hard: 0, good: 0, easy: 0 });
   const [isComplete, setIsComplete] = useState(false);
 
   const currentCard = deck[currentIndex];
@@ -24,8 +47,7 @@ export default function FlashcardMode({ listId, onNavigate }: { listId: string; 
   const resetSession = (nextDeck = initialWords) => {
     setDeck(nextDeck);
     setCurrentIndex(0);
-    setKnownCount(0);
-    setUnknownCount(0);
+    setRatings({ again: 0, hard: 0, good: 0, easy: 0 });
     setIsComplete(false);
   };
 
@@ -57,23 +79,17 @@ export default function FlashcardMode({ listId, onNavigate }: { listId: string; 
     setIsComplete(true);
   };
 
-  const handleKnown = () => {
-    recordSuccess(currentCard.id);
-    setKnownCount((previous) => previous + 1);
-    goNext();
-  };
-
-  const handleUnknown = () => {
-    recordFailure(currentCard.id);
-    setUnknownCount((previous) => previous + 1);
+  const handleRate = (rating: SrsRating) => {
+    rateCard(currentCard.id, rating);
+    setRatings((previous) => ({ ...previous, [rating]: previous[rating] + 1 }));
     goNext();
   };
 
   return (
     <StudyModeShell
       modeLabel="Kartlar"
-      title="Kartla hızlı hatırlama"
-      description="Kartı çevir, cevabı gör ve kelimeyi bildiğini ya da zorlandığını işaretle."
+      title="Liste kartları"
+      description="Seçili listeyi çalış ve SRS aralığını aynı Again/Hard/Good/Easy kararlarıyla güncelle."
       listTitle={list.title}
       progress={progress}
       currentIndex={isComplete ? deck.length - 1 : currentIndex}
@@ -83,8 +99,8 @@ export default function FlashcardMode({ listId, onNavigate }: { listId: string; 
       onToggleDirection={toggleStudyDirection}
       accentClassName="teal"
       stats={[
-        { label: 'Bilinen', value: `${knownCount}` },
-        { label: 'Zorlanan', value: `${unknownCount}` },
+        { label: 'Again', value: `${ratings.again}` },
+        { label: 'Good', value: `${ratings.good}` },
         { label: 'Liste', value: list.title },
       ]}
       footer={
@@ -106,14 +122,16 @@ export default function FlashcardMode({ listId, onNavigate }: { listId: string; 
       {isComplete ? (
         <StudyCompletionCard
           title="Kart turu tamamlandı"
-          description="Bu turdaki kartları bitirdin. Zorlandıkların otomatik olarak zor kelimeler listesine yaklaşır."
+          description="Bu turdaki SRS kararların kartların sonraki görünme zamanını güncelledi."
           primaryLabel="Baştan al"
           onPrimary={actions.reset}
           secondaryLabel="Panele dön"
           onSecondary={() => onNavigate({ type: 'dashboard' })}
           summary={[
-            { label: 'Bilinen', value: `${knownCount}` },
-            { label: 'Zorlanan', value: `${unknownCount}` },
+            { label: 'Again', value: `${ratings.again}` },
+            { label: 'Hard', value: `${ratings.hard}` },
+            { label: 'Good', value: `${ratings.good}` },
+            { label: 'Easy', value: `${ratings.easy}` },
             { label: 'Toplam', value: `${deck.length}` },
           ]}
         />
@@ -132,21 +150,23 @@ export default function FlashcardMode({ listId, onNavigate }: { listId: string; 
             </motion.div>
           </AnimatePresence>
 
-          <div className="flex w-full max-w-sm items-center justify-center gap-4">
-            <button
-              onClick={handleUnknown}
-              className="flex h-14 min-w-0 flex-1 items-center justify-center gap-2 rounded-[14px] border border-claude-border bg-claude-panel px-4 text-sm font-semibold text-claude-subtle transition-colors hover:border-claude-danger/50 hover:text-claude-danger"
-            >
-              <X size={18} />
-              Zorlandım
-            </button>
-            <button
-              onClick={handleKnown}
-              className="flex h-14 min-w-0 flex-1 items-center justify-center gap-2 rounded-[14px] border border-claude-border bg-claude-panel px-4 text-sm font-semibold text-claude-subtle transition-colors hover:border-claude-success/50 hover:text-claude-success"
-            >
-              <Check size={18} />
-              Bildim
-            </button>
+          <div className="grid w-full gap-2 sm:grid-cols-4">
+            {(Object.keys(ratingConfig) as SrsRating[]).map((rating) => {
+              const config = ratingConfig[rating];
+              return (
+                <button
+                  key={rating}
+                  onClick={() => handleRate(rating)}
+                  className={`flex min-h-16 flex-col items-center justify-center rounded-[14px] border border-claude-border bg-claude-panel px-3 text-sm font-semibold text-claude-subtle transition-colors ${config.className}`}
+                >
+                  <span className="flex items-center gap-2 text-base text-claude-text">
+                    {rating === 'easy' ? <Zap size={16} /> : rating === 'good' ? <CheckCircle2 size={16} /> : null}
+                    {config.label}
+                  </span>
+                  <span className="mt-1 text-xs font-medium text-claude-muted">{config.hint}</span>
+                </button>
+              );
+            })}
           </div>
         </div>
       )}

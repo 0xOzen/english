@@ -1,6 +1,6 @@
 import { motion } from 'motion/react';
 import { useState, type KeyboardEvent, type MouseEvent } from 'react';
-import { RefreshCcw, Volume2 } from 'lucide-react';
+import { ExternalLink, RefreshCcw, Volume2 } from 'lucide-react';
 import { Flashcard as FlashcardType, StudyDirection } from './types';
 
 interface FlashcardProps {
@@ -46,13 +46,16 @@ export default function Flashcard({ card, studyDirection = 'EN_TO_TR' }: Flashca
     if ('speechSynthesis' in window) {
       window.speechSynthesis.cancel();
       const utterance = new SpeechSynthesisUtterance(card.term);
-      utterance.lang = 'en-US';
+      utterance.lang = card.pronunciationVariant === 'uk' ? 'en-GB' : 'en-US';
       window.speechSynthesis.speak(utterance);
     }
   };
 
-  const frontText = studyDirection === 'TR_TO_EN' ? displayTranslation : card.term;
-  const backText = studyDirection === 'TR_TO_EN' ? card.term : displayTranslation;
+  const frontText = card.prompt || (studyDirection === 'TR_TO_EN' ? displayTranslation : card.term);
+  const backText = card.answer || (studyDirection === 'TR_TO_EN' ? card.term : displayTranslation);
+  const cardKindLabel = card.cardKind
+    ? card.cardKind.replace(/([A-Z])/g, ' $1').replace(/^./, (letter) => letter.toUpperCase())
+    : null;
 
   return (
     <div
@@ -84,17 +87,22 @@ export default function Flashcard({ card, studyDirection = 'EN_TO_TR' }: Flashca
           )}
 
           <div className="flex flex-1 flex-col items-center justify-center text-center">
-            {card.level ? (
-              <div className="mb-3 flex gap-2">
+            {card.level || cardKindLabel ? (
+              <div className="mb-3 flex flex-wrap justify-center gap-2">
                 <span className={`rounded-[6px] px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wide ${getLevelClassName(card.level)}`}>
-                  {card.level}
+                  {card.level || 'CARD'}
                 </span>
+                {cardKindLabel ? (
+                  <span className="rounded-[6px] bg-claude-accentSoft px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-claude-accent">
+                    {cardKindLabel}
+                  </span>
+                ) : null}
               </div>
             ) : null}
 
             <div className="relative mb-2 flex flex-wrap items-baseline justify-center gap-2">
               <h2 className="break-words text-3xl font-semibold tracking-tight text-claude-text sm:text-4xl">{frontText}</h2>
-              {studyDirection === 'EN_TO_TR' ? (
+              {studyDirection === 'EN_TO_TR' && !card.prompt ? (
                 <button
                   onClick={playAudioTerm}
                   className="inline-flex h-10 w-10 items-center justify-center rounded-full text-claude-muted transition-all hover:bg-claude-accentSoft hover:text-claude-accent active:scale-95"
@@ -211,10 +219,43 @@ export default function Flashcard({ card, studyDirection = 'EN_TO_TR' }: Flashca
               </div>
             ) : null}
 
+            {(card.sourceTags?.length || card.register) ? (
+              <div className="mt-5 flex flex-wrap justify-center gap-2">
+                {card.register ? (
+                  <span className="rounded-full border border-claude-border px-3 py-1 text-xs font-semibold text-claude-muted">
+                    {card.register}
+                  </span>
+                ) : null}
+                {(card.sourceTags || []).slice(0, 4).map((tag) => (
+                  <span key={tag} className="rounded-full border border-claude-border px-3 py-1 text-xs font-semibold text-claude-muted">
+                    {tag}
+                  </span>
+                ))}
+              </div>
+            ) : null}
+
             {card.note ? (
               <div className="mt-6 w-full rounded-xl border border-amber-500/20 bg-amber-500/10 p-4 text-left">
                 <div className="mb-1.5 text-[10px] font-bold uppercase tracking-widest text-amber-500/80">Not</div>
                 <p className="text-sm font-medium leading-relaxed text-amber-200/90">{card.note}</p>
+              </div>
+            ) : null}
+
+            {card.usageLinks?.length ? (
+              <div className="mt-5 flex flex-wrap justify-center gap-2">
+                {card.usageLinks.map((link) => (
+                  <a
+                    key={`${link.label}-${link.url}`}
+                    href={link.url}
+                    target="_blank"
+                    rel="noreferrer"
+                    onClick={(event) => event.stopPropagation()}
+                    className="inline-flex items-center gap-1.5 rounded-[10px] border border-claude-border bg-claude-surface px-3 py-2 text-xs font-semibold text-claude-subtle transition-colors hover:text-claude-text"
+                  >
+                    {link.label}
+                    <ExternalLink size={12} />
+                  </a>
+                ))}
               </div>
             ) : null}
           </div>

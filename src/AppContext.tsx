@@ -1,7 +1,8 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
-import { AppState, Flashcard, VocabList } from './types';
+import { AppState, Flashcard, SrsRating, SrsSettings, VocabList } from './types';
 import { createDefaultAppState, migrateAppState } from './lib/appState';
 import { loadPersistedAppState, savePersistedAppState } from './lib/persistence';
+import { DEFAULT_SRS_SETTINGS, getDueCards, getSrsSummary as summarizeSrs, rateSrs } from './lib/srs';
 
 interface AppContextType extends AppState {
   isHydrated: boolean;
@@ -10,6 +11,10 @@ interface AppContextType extends AppState {
   deleteList: (id: string) => void;
   recordSuccess: (wordId: string) => void;
   recordFailure: (wordId: string) => void;
+  rateCard: (wordId: string, rating: SrsRating) => void;
+  getTodaysReviewList: () => VocabList;
+  getSrsSummary: () => ReturnType<typeof summarizeSrs>;
+  updateSrsSettings: (settings: Partial<SrsSettings>) => void;
   getOverallProgress: () => { totalStudied: number; accuracy: number };
   getDifficultWordsList: () => VocabList | null;
   toggleStudyDirection: () => void;
@@ -106,6 +111,46 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         }
       };
     });
+  };
+
+  const rateCard = (wordId: string, rating: SrsRating) => {
+    setState(prev => {
+      const settings = prev.srsSettings ?? DEFAULT_SRS_SETTINGS;
+      const wordStats = prev.stats[wordId] || { correct: 0, incorrect: 0 };
+      const nextStats =
+        rating === 'again'
+          ? { ...wordStats, incorrect: wordStats.incorrect + 1 }
+          : { ...wordStats, correct: wordStats.correct + 1 };
+
+      return {
+        ...prev,
+        lists: prev.lists.map(list => ({
+          ...list,
+          words: list.words.map(word =>
+            word.id === wordId
+              ? {
+                  ...word,
+                  srs: rateSrs(word, rating, settings),
+                }
+              : word,
+          ),
+        })),
+        stats: {
+          ...prev.stats,
+          [wordId]: nextStats,
+        },
+      };
+    });
+  };
+
+  const updateSrsSettings = (settings: Partial<SrsSettings>) => {
+    setState(prev => ({
+      ...prev,
+      srsSettings: {
+        ...(prev.srsSettings ?? DEFAULT_SRS_SETTINGS),
+        ...settings,
+      },
+    }));
   };
 
   const getOverallProgress = () => {
@@ -224,6 +269,18 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     };
   };
 
+  const getTodaysReviewList = (): VocabList => {
+    const due = getDueCards(state.lists, state.srsSettings ?? DEFAULT_SRS_SETTINGS);
+    return {
+      id: 'today-review',
+      title: "Today's Review",
+      isDefault: true,
+      words: due.queue,
+    };
+  };
+
+  const getSrsSummary = () => summarizeSrs(state.lists, state.srsSettings ?? DEFAULT_SRS_SETTINGS);
+
   return (
     <AppContext.Provider value={{
       ...state,
@@ -233,6 +290,10 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       deleteList,
       recordSuccess,
       recordFailure,
+      rateCard,
+      getTodaysReviewList,
+      getSrsSummary,
+      updateSrsSettings,
       getOverallProgress,
       getDifficultWordsList,
       toggleStudyDirection,

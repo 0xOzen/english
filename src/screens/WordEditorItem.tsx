@@ -1,5 +1,5 @@
 import { useState, type ReactNode } from 'react';
-import { Flashcard, WordType } from '../types';
+import { CardKind, Flashcard, WordType } from '../types';
 import { ChevronDown, Trash2, ImagePlus, Loader2 } from 'lucide-react';
 import { generateImageMnemonic } from '../services/gemini';
 import { useApp } from '../AppContext';
@@ -31,6 +31,12 @@ export default function WordEditorItem({ word, isDefault, onUpdate, onRemove }: 
       word.example ||
       word.exampleTranslation ||
       word.note ||
+      word.prompt ||
+      word.answer ||
+      word.register ||
+      word.sourceTags?.length ||
+      word.usageLinks?.length ||
+      word.userPronunciationUrl ||
       word.imageUrl,
   );
   const [showDetails, setShowDetails] = useState(hasAdvancedFields);
@@ -79,6 +85,32 @@ export default function WordEditorItem({ word, isDefault, onUpdate, onRemove }: 
     onUpdate(word.id, 'phraseForms', updated);
   };
 
+  const updateSourceTags = (value: string) => {
+    onUpdate(
+      word.id,
+      'sourceTags',
+      value
+        .split(',')
+        .map((tag) => tag.trim())
+        .filter(Boolean),
+    );
+  };
+
+  const updateUsageLinks = (value: string) => {
+    onUpdate(
+      word.id,
+      'usageLinks',
+      value
+        .split('\n')
+        .map((line) => {
+          const [label, ...urlParts] = line.split('|');
+          const url = urlParts.join('|').trim();
+          return label?.trim() && url ? { label: label.trim(), url } : null;
+        })
+        .filter((link): link is NonNullable<Flashcard['usageLinks']>[number] => link !== null),
+    );
+  };
+
   const termLabel =
     word.wordType === 'noun'
       ? 'İngilizce isim'
@@ -103,7 +135,7 @@ export default function WordEditorItem({ word, isDefault, onUpdate, onRemove }: 
   return (
     <div className="group relative overflow-hidden rounded-[18px] border border-claude-border bg-claude-panel p-4 shadow-soft transition-all hover:border-claude-border sm:p-5">
       <div className="mb-5 flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
-        <div className="grid gap-4 sm:grid-cols-[220px_140px]">
+        <div className="grid gap-4 sm:grid-cols-[220px_190px_140px]">
           <div>
             <Label>Kart türü</Label>
             <select
@@ -121,6 +153,24 @@ export default function WordEditorItem({ word, isDefault, onUpdate, onRemove }: 
               <option value="phrasalVerb">Phrasal verb</option>
               <option value="idiom">Idiom</option>
               <option value="collocation">Collocation</option>
+            </select>
+          </div>
+          <div>
+            <Label>Çalışma tipi</Label>
+            <select
+              value={word.cardKind || 'meaning'}
+              onChange={(event) => onUpdate(word.id, 'cardKind', event.target.value as CardKind)}
+              disabled={isDefault}
+              className={inputClassName}
+            >
+              <option value="meaning">Meaning</option>
+              <option value="production">Production</option>
+              <option value="collocation">Collocation</option>
+              <option value="register">Register</option>
+              <option value="sentenceTransformation">Sentence transformation</option>
+              <option value="speakingFunction">Speaking function</option>
+              <option value="errorCorrection">Error correction</option>
+              <option value="pronunciation">Pronunciation</option>
             </select>
           </div>
           <div>
@@ -173,6 +223,62 @@ export default function WordEditorItem({ word, isDefault, onUpdate, onRemove }: 
 
       {showDetails ? (
         <>
+      <div className="mt-5 border-t border-claude-border pt-5">
+        <div className="mb-5 flex flex-col gap-2 md:flex-row md:items-baseline md:gap-4">
+          <h4 className="text-lg font-semibold tracking-tight text-claude-text">Aktif üretim</h4>
+          <p className="text-sm leading-6 text-claude-muted">Production, collocation, register ve Use of English kartları bu alanları kullanır.</p>
+        </div>
+        <div className="grid gap-4 md:grid-cols-2">
+          <div>
+            <Label>Prompt</Label>
+            <textarea
+              value={word.prompt || ''}
+              onChange={(event) => onUpdate(word.id, 'prompt', event.target.value)}
+              disabled={isDefault}
+              placeholder="örn. pose a ___ / Fikri yumuşatarak itiraz et"
+              className={textareaClassName}
+            />
+          </div>
+          <div>
+            <Label>Beklenen cevap</Label>
+            <textarea
+              value={word.answer || ''}
+              onChange={(event) => onUpdate(word.id, 'answer', event.target.value)}
+              disabled={isDefault}
+              placeholder="örn. risk / I see your point, but..."
+              className={textareaClassName}
+            />
+          </div>
+          <div>
+            <Label>Register</Label>
+            <select
+              value={word.register || ''}
+              onChange={(event) => onUpdate(word.id, 'register', event.target.value || undefined)}
+              disabled={isDefault}
+              className={inputClassName}
+            >
+              <option value="">Yok</option>
+              <option value="informal">Informal</option>
+              <option value="neutral">Neutral</option>
+              <option value="formal">Formal</option>
+            </select>
+          </div>
+          <div>
+            <Label>Telaffuz varyantı</Label>
+            <select
+              value={word.pronunciationVariant || ''}
+              onChange={(event) => onUpdate(word.id, 'pronunciationVariant', event.target.value || undefined)}
+              disabled={isDefault}
+              className={inputClassName}
+            >
+              <option value="">Otomatik</option>
+              <option value="us">American</option>
+              <option value="uk">British</option>
+            </select>
+          </div>
+        </div>
+      </div>
+
       {word.wordType === 'verb' || word.wordType === 'phrasalVerb' ? (
         <div className="mt-5 border-t border-claude-border pt-5">
           <div className="mb-5 flex flex-col gap-2 md:flex-row md:items-baseline md:gap-4">
@@ -267,6 +373,45 @@ export default function WordEditorItem({ word, isDefault, onUpdate, onRemove }: 
           <div>
             <Label>Dilbilgisi notu</Label>
             <textarea value={word.note || ''} onChange={(event) => onUpdate(word.id, 'note', event.target.value)} disabled={isDefault} className={textareaClassName} />
+          </div>
+        </div>
+      </div>
+
+      <div className="mt-5 border-t border-claude-border pt-5">
+        <div className="mb-5 flex flex-col gap-2 md:flex-row md:items-baseline md:gap-4">
+          <h4 className="text-lg font-semibold tracking-tight text-claude-text">Kaynak ve doğal kullanım</h4>
+          <p className="text-sm leading-6 text-claude-muted">Kart içeriği özgün kalır; sözlük ve gerçek kullanım kaynakları lookup olarak bağlanır.</p>
+        </div>
+        <div className="grid gap-4 md:grid-cols-2">
+          <div>
+            <Label>Source tags</Label>
+            <input
+              value={(word.sourceTags || []).join(', ')}
+              onChange={(event) => updateSourceTags(event.target.value)}
+              disabled={isDefault}
+              placeholder="Oxford5000, CambridgeC1, Collocation"
+              className={inputClassName}
+            />
+          </div>
+          <div>
+            <Label>Kendi telaffuz kaydı URL</Label>
+            <input
+              value={word.userPronunciationUrl || ''}
+              onChange={(event) => onUpdate(word.id, 'userPronunciationUrl', event.target.value)}
+              disabled={isDefault}
+              placeholder="blob veya dosya URL"
+              className={inputClassName}
+            />
+          </div>
+          <div className="md:col-span-2">
+            <Label>Lookup linkleri</Label>
+            <textarea
+              value={(word.usageLinks || []).map((link) => `${link.label} | ${link.url}`).join('\n')}
+              onChange={(event) => updateUsageLinks(event.target.value)}
+              disabled={isDefault}
+              placeholder="Cambridge | https://dictionary.cambridge.org/...\nYouGlish | https://youglish.com/pronounce/..."
+              className={textareaClassName}
+            />
           </div>
         </div>
       </div>

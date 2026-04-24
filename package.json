@@ -10,6 +10,7 @@
     "dev:api": "node server/index.mjs",
     "build": "vite build",
     "build:web": "vite build",
+    "deploy": "npm run build && wrangler deploy",
     "preview": "vite preview",
     "serve:api": "node server/index.mjs",
     "clean": "rm -rf dist",

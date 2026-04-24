@@ -16,15 +16,30 @@ type SeedCard = {
   collocations?: string;
 };
 
+function encodeLookup(value: string): string {
+  return encodeURIComponent(value.trim());
+}
+
+function inferCardKind(type: WordType): Flashcard['cardKind'] {
+  if (type === 'collocation') return 'collocation';
+  if (type === 'phrase' || type === 'idiom') return 'speakingFunction';
+  if (type === 'phrasalVerb') return 'production';
+  return 'meaning';
+}
+
 function card(seed: SeedCard, index: number, prefix: string): Flashcard {
   const isPhraseLike = ['phrase', 'phrasalVerb', 'idiom', 'collocation'].includes(seed.type);
+  const lookupTerm = encodeLookup(seed.term);
 
   return {
     id: `${prefix}_${index}`,
     term: seed.term,
     translationTr: seed.tr,
     wordType: seed.type,
+    cardKind: inferCardKind(seed.type),
     level: seed.level,
+    prompt: seed.type === 'collocation' && seed.pattern ? seed.pattern.replace(seed.term, '___') : undefined,
+    answer: seed.type === 'collocation' ? seed.term : undefined,
     example: seed.example,
     exampleTranslation: seed.exampleTr,
     note: [seed.note, seed.synonyms ? `Synonyms: ${seed.synonyms}` : '', seed.collocations ? `Collocations: ${seed.collocations}` : '']
@@ -51,6 +66,31 @@ function card(seed: SeedCard, index: number, prefix: string): Flashcard {
             usage: seed.pattern || '',
           }
         : undefined,
+    sourceTags: [
+      seed.level === 'C1' ? 'Oxford5000-C1' : 'Oxford5000-B2',
+      seed.type === 'collocation' ? 'Collocation' : '',
+      seed.type === 'phrase' ? 'Speaking' : '',
+      seed.type === 'phrasalVerb' ? 'PhrasalVerb' : '',
+      seed.type === 'idiom' ? 'NaturalEnglish' : '',
+    ].filter(Boolean),
+    usageLinks: [
+      {
+        label: 'Cambridge',
+        url: `https://dictionary.cambridge.org/dictionary/english/${lookupTerm}`,
+      },
+      {
+        label: 'Oxford',
+        url: `https://www.oxfordlearnersdictionaries.com/definition/english/${lookupTerm}`,
+      },
+      {
+        label: 'YouGlish',
+        url: `https://youglish.com/pronounce/${lookupTerm}/english`,
+      },
+      {
+        label: 'Forvo',
+        url: `https://forvo.com/search/${lookupTerm}/en/`,
+      },
+    ],
   };
 }
 

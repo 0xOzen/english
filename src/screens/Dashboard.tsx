@@ -1,4 +1,4 @@
-import { ArrowRight, BookOpen, Edit2, Flame, Grid2X2, LibraryBig, PenLine, Plus, RefreshCw } from 'lucide-react';
+import { ArrowRight, BookOpen, Brain, Edit2, FileText, Flame, Gauge, Grid2X2, LibraryBig, Mic, PenLine, Plus, RefreshCw } from 'lucide-react';
 import { useApp } from '../AppContext';
 import { Screen } from '../App';
 import { VocabList } from '../types';
@@ -37,9 +37,20 @@ type DashboardProps = {
 };
 
 export default function Dashboard({ selectedListId, onSelectList, onNavigate }: DashboardProps) {
-  const { lists, stats, studyDirection, toggleStudyDirection, getOverallProgress, getDifficultWordsList } = useApp();
+  const {
+    lists,
+    stats,
+    studyDirection,
+    toggleStudyDirection,
+    getOverallProgress,
+    getDifficultWordsList,
+    getSrsSummary,
+    srsSettings,
+    updateSrsSettings,
+  } = useApp();
   const { totalStudied, accuracy } = getOverallProgress();
   const difficultList = getDifficultWordsList();
+  const srsSummary = getSrsSummary();
   const selectableLists = difficultList ? [difficultList, ...lists] : lists;
   const primaryList =
     selectableLists.find((list) => list.id === selectedListId) ??
@@ -83,18 +94,69 @@ export default function Dashboard({ selectedListId, onSelectList, onNavigate }: 
       </div>
 
       <button
-        onClick={() => onNavigate({ type: 'study', mode: 'write', listId: primaryList.id })}
+        onClick={() => onNavigate({ type: 'review' })}
         className="mb-4 flex w-full items-center gap-3 rounded-[14px] border border-claude-border bg-claude-panel/80 px-4 py-4 text-left shadow-soft transition-colors hover:border-claude-accent/40 hover:bg-claude-panel"
       >
         <span className="codex-action-icon">
-          <PenLine size={16} />
+          <Brain size={16} />
         </span>
         <span className="min-w-0 flex-1">
-          <span className="block text-sm font-semibold text-claude-text">Devam et</span>
-          <span className="mt-0.5 block truncate text-xs text-claude-muted">{primaryList.title} · Yazma pratiği</span>
+          <span className="block text-sm font-semibold text-claude-text">Today's Review</span>
+          <span className="mt-0.5 block truncate text-xs text-claude-muted">
+            {srsSummary.dueReview} tekrar · {srsSummary.dueNew} yeni · tahmini yük {srsSummary.estimatedDailyLoad}
+          </span>
         </span>
         <ArrowRight size={16} className="text-claude-muted" />
       </button>
+
+      <section className="mb-4 codex-panel overflow-hidden rounded-[14px]">
+        <div className="flex flex-col gap-4 px-4 py-4 sm:flex-row sm:items-center">
+          <span className="codex-action-icon">
+            <Gauge size={16} />
+          </span>
+          <div className="min-w-0 flex-1">
+            <div className="text-sm font-semibold text-claude-text">SRS hedefi</div>
+            <div className="mt-1 text-xs text-claude-muted">
+              Retention yükseldikçe aralıklar kısalır; günlük yük tahmini buna göre artar.
+            </div>
+          </div>
+          <div className="grid w-full gap-2 sm:w-[340px] sm:grid-cols-[1fr_auto] sm:items-center">
+            <input
+              type="range"
+              min={80}
+              max={95}
+              step={1}
+              value={Math.round((srsSettings?.targetRetention ?? 0.9) * 100)}
+              onChange={(event) => updateSrsSettings({ targetRetention: Number(event.target.value) / 100 })}
+              className="w-full accent-claude-accent"
+              aria-label="Hedef retention"
+            />
+            <div className="rounded-[10px] border border-claude-border bg-claude-surface px-3 py-2 text-sm font-semibold text-claude-text">
+              {Math.round((srsSettings?.targetRetention ?? 0.9) * 100)}%
+            </div>
+          </div>
+        </div>
+
+        <div className="codex-divider" />
+        <div className="grid divide-y divide-claude-border sm:grid-cols-4 sm:divide-x sm:divide-y-0">
+          <div className="px-4 py-3">
+            <div className="text-xs text-claude-muted">Due review</div>
+            <div className="mt-1 text-base font-semibold text-claude-text">{srsSummary.dueReview}</div>
+          </div>
+          <div className="px-4 py-3">
+            <div className="text-xs text-claude-muted">Yeni kart</div>
+            <div className="mt-1 text-base font-semibold text-claude-text">{srsSummary.dueNew}</div>
+          </div>
+          <div className="px-4 py-3">
+            <div className="text-xs text-claude-muted">Zayıf kart</div>
+            <div className="mt-1 text-base font-semibold text-claude-text">{srsSummary.weakCount}</div>
+          </div>
+          <div className="px-4 py-3">
+            <div className="text-xs text-claude-muted">Yarın</div>
+            <div className="mt-1 text-base font-semibold text-claude-text">{srsSummary.dueTomorrow}</div>
+          </div>
+        </div>
+      </section>
 
       <section className="codex-panel overflow-hidden rounded-[14px]">
         <div className="flex flex-col gap-4 px-4 py-4 sm:flex-row sm:items-center">
@@ -142,17 +204,6 @@ export default function Dashboard({ selectedListId, onSelectList, onNavigate }: 
       </section>
 
       <section className="mt-4 codex-panel overflow-hidden rounded-[14px]">
-        <button onClick={() => onNavigate({ type: 'study', mode: 'flashcard', listId: primaryList.id })} className="codex-action-row">
-          <span className="codex-action-icon">
-            <BookOpen size={16} />
-          </span>
-          <span className="min-w-0 flex-1">
-            <span className="block text-sm font-semibold text-claude-text">Kartlar</span>
-            <span className="mt-0.5 block text-xs text-claude-muted">{primaryList.title}</span>
-          </span>
-          <ArrowRight size={16} className="text-claude-muted" />
-        </button>
-        <div className="codex-divider" />
         <button onClick={() => onNavigate({ type: 'study', mode: 'quiz', listId: primaryList.id })} className="codex-action-row">
           <span className="codex-action-icon">
             <ArrowRight size={16} />
@@ -205,6 +256,26 @@ export default function Dashboard({ selectedListId, onSelectList, onNavigate }: 
           <span className="min-w-0 flex-1">
             <span className="block text-sm font-semibold text-claude-text">Düzenle</span>
             <span className="mt-0.5 block text-xs text-claude-muted">Liste içeriği</span>
+          </span>
+        </button>
+        <div className="codex-divider" />
+        <button onClick={() => onNavigate({ type: 'speaking' })} className="codex-action-row">
+          <span className="codex-action-icon">
+            <Mic size={16} />
+          </span>
+          <span className="min-w-0 flex-1">
+            <span className="block text-sm font-semibold text-claude-text">Speaking Lab</span>
+            <span className="mt-0.5 block text-xs text-claude-muted">Ses kaydı ve üretim feedback</span>
+          </span>
+        </button>
+        <div className="codex-divider" />
+        <button onClick={() => onNavigate({ type: 'import' })} className="codex-action-row">
+          <span className="codex-action-icon">
+            <FileText size={16} />
+          </span>
+          <span className="min-w-0 flex-1">
+            <span className="block text-sm font-semibold text-claude-text">Context Import</span>
+            <span className="mt-0.5 block text-xs text-claude-muted">Metinden kart adayları çıkar</span>
           </span>
         </button>
         <div className="codex-divider" />
