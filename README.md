@@ -25,6 +25,16 @@ Phase 1 converts the original German-focused shell into an English-Turkish B2-C1
 - English TTS voice configuration
 - updated app metadata, manifest, and backup naming
 
+## Content Direction
+
+The starter decks are shaped by B2-C1 learner priorities from Oxford and Cambridge-style resources:
+
+- Oxford 5000-style advanced learner vocabulary focus
+- Cambridge B2 First and C1 Advanced exam skills: vocabulary range, register, paraphrase, discourse, sentence transformations, speaking functions, and writing clarity
+- Turkish explanations, original example sentences, collocations, phrasal verbs, idioms, and speaking patterns written specifically for this app
+
+The app does not copy dictionary definitions or copyrighted example sentences. It uses learner-resource categories as guidance and keeps the card explanations original.
+
 ## Run Locally
 
 Prerequisite: Node.js
